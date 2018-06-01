@@ -8,7 +8,7 @@ using std::string;
 #define BUF_SIZ		1024
 //#define FILE_PATH	"/root/zaproxy/"
 //#define FILE_NAME	"test_0000.xml"
-#define FILE_PATH	"/opt/splunk/var/log/splunk/"
+#define FILE_PATH	"/opt/splunk/test/"
 #define FILE_NAME	"test_0000.xml"
 
 int vul_result(int sock){
