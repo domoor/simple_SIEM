@@ -1,18 +1,31 @@
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <unistd.h>
 #include <netinet/in.h>
 #include <string>
 using std::string;
 
 #define BUF_SIZ		1024
-//#define FILE_PATH	"/root/zaproxy/"
-//#define FILE_NAME	"test_0000.xml"
-#define FILE_PATH	"/opt/splunk/test/"
-#define FILE_NAME	"test_0000.xml"
+#define PORT_PATH	"/opt/splunk/test/port/"
+#define WEB_PATH	"/opt/splunk/test/web/"
+#define FILE_NAME	"result_0000.xml"
 
-int vul_result(int sock){
+int port_res(int sock){
     int res, len;
+    char target[BUF_SIZ];
+
+    puts("취약점 검사 대상을 입력해 주세요.");
+    puts("ex) 127.0.0.1");
+    printf(": ");
+    scanf("%s", target);
+
+    sleep(1);
+    res = send(sock, target, strlen(target), 0);
+    if(res < 0) {
+	perror("target send failed !");
+	return -1;
+    }
 
     res = recv(sock, (char*)&len, 10, 0);
     if(res < 0) {
@@ -28,14 +41,56 @@ int vul_result(int sock){
     }
     buf[len] = '\n';
 
-    string file = FILE_PATH;
+    string file = PORT_PATH;
     file += FILE_NAME;
     FILE * wfp = fopen(file.c_str(), "w");
     fwrite(buf, 1, len, wfp);
     fclose(wfp);
     free(buf);
 
-    puts("검사가 완료 되었습니다.");
+    puts("\n검사가 완료 되었습니다.");
+    return 1;
+}
+
+int web_res(int sock){
+    int res, len;
+    char target[BUF_SIZ];
+
+    puts("\n취약점 검사 대상을 입력해 주세요.");
+    puts("ex) http://127.0.0.1:8000");
+    printf(": ");
+    scanf("%s", target);
+    
+    sleep(1);
+    res = send(sock, target, strlen(target), 0);
+    if(res < 0) {
+	perror("target send failed !");
+	return -1;
+    }
+
+    res = recv(sock, (char*)&len, 10, 0);
+    if(res < 0) {
+        perror("recv1 failed !");
+	return -1;
+    }
+    char *buf = (char*)malloc(len+1);
+
+    res = recv(sock, buf, len, 0);
+    if(res < 0) {
+        perror("recv2 failed !");
+	return -1;
+    }
+    buf[len] = '\n';
+
+    string file = WEB_PATH;
+    file += FILE_NAME;
+    FILE * wfp = fopen(file.c_str(), "w");
+    fwrite(buf, 1, len, wfp);
+    fclose(wfp);
+    free(buf);
+
+    puts("\n검사가 완료 되었습니다.");
+    return 1;
 }
 
 int command_srv(int sock){
@@ -43,22 +98,37 @@ int command_srv(int sock){
     int start;
 
     while(1) {
-	puts("1\t:start");
-	puts("default\t: exit");
+	puts("\nport\t: 1");
+	puts("web\t: 2");
+	puts("exit\t: default");
 	printf("Input : ");
         scanf("%d",&start);
         switch(start) {
 	case 1:
-	    puts("취약점 검사를 시작합니다.");
-	    res = send(sock,"start\n",6,0);
+	    puts("\n열려있는 포트에 대해 검사를 시작합니다.");
+	    res = send(sock, "port\n",5,0);
 	    if(res < 0) {
         	perror("send failed !");
 		return -1;
 	    }
-	    if(res = vul_result(sock) < 0) return res;
+	    if(res = port_res(sock) < 0) return res;
+	    break;
+	case 2:
+	    puts("웹 취약점 검사를 시작합니다.");
+	    res = send(sock,"web\n",4,0);
+	    if(res < 0) {
+        	perror("send failed !");
+		return -1;
+	    }
+	    if(res = web_res(sock) < 0) return res;
 	    break;
 	default:
 	    puts("프로그램을 종료합니다.");
+	    res = send(sock,"end\n",4,0);
+	    if(res < 0) {
+        	perror("send failed !");
+		return -1;
+	    }
 	    return 0;
  	}
     }
